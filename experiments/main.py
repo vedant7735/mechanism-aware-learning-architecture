@@ -29,7 +29,7 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 
 from hub import CentralAwarenessHub
-from formation_gate import NicheFormationGate
+from experiments.formation_gate import NicheFormationGate
 from niche import NicheLibrary, Niche
 
 
