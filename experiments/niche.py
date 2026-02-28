@@ -322,38 +322,43 @@ class NicheLibrary(nn.Module):
         Given a context the model failed on, diagnose why.
 
         Maps directly to the three failure modes from the spec:
-          1. Incomplete mechanism — no Niche covers this context well
-          2. Wrong selection      — selection scores are ambiguous
-          3. Insufficient awareness — m is too small
+        1. Incomplete mechanism — no Niche covers this context well
+        2. Wrong selection      — selection scores are ambiguous
+        3. Insufficient awareness — m is too small
 
         Returns a dict with failure attribution.
         """
         if self.m == 0:
             return {"failure": "insufficient_awareness", "m": 0,
-                    "detail": "No Niches in library yet."}
+                "detail": "No Niches in library yet."}
 
         _, scores = self.select(context, return_scores=True)
         best_score = scores.max().item()
         entropy = -(scores * (scores + 1e-8).log()).sum().item()
 
-        if best_score < 0.3:
+        uniform_score = 1.0 / self.m
+        match_ratio = best_score / uniform_score
+
+        if match_ratio < 1.2:
             return {
                 "failure": "incomplete_mechanism",
                 "best_score": best_score,
+                "match_ratio": match_ratio,
                 "detail": "No existing Niche matches this context well. "
-                          "Residual should be passed to formation gate."
+                      "Residual should be passed to formation gate."
             }
         elif entropy > 1.5:
             return {
                 "failure": "wrong_selection",
                 "entropy": entropy,
                 "detail": "Selection scores are highly uncertain. "
-                          "Multiple Niches compete — composition may help."
+                      "Multiple Niches compete — composition may help."
             }
         else:
             return {
                 "failure": "none_detected",
                 "best_score": best_score,
+                "match_ratio": match_ratio,
                 "detail": "Mechanism coverage looks adequate for this context."
             }
 

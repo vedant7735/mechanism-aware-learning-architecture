@@ -315,7 +315,7 @@ def experiment_failure_traceability(n_neurons: int = 32) -> None:
 
     # Build a small library
     for mode in ["linear", "oscillatory"]:
-        for step in range(1, 31):
+        for step in range(1, 61):
             state = generate_neuron_state(step, n_neurons, mode=mode)
             maia.step(state)
 
