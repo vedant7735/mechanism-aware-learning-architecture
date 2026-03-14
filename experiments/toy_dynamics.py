@@ -37,6 +37,46 @@ from hub import CentralAwarenessHub
 from formation_gate import NicheFormationGate
 from niche import NicheLibrary
 from main import MAIA, MAIAConfig, generate_neuron_state
+from provisional import ProvisionalSpace
+
+
+# ─────────────────────────────────────────────
+# Shared config factory
+# ─────────────────────────────────────────────
+
+def base_config(n_neurons: int, **overrides) -> MAIAConfig:
+    """
+    Returns a MAIAConfig with sensible defaults for toy experiments.
+    All prov_* and mono_* params are set here so every experiment
+    uses consistent intake pathway settings.
+    """
+    defaults = dict(
+        n_neurons=n_neurons,
+        max_niches=16,
+        residual_threshold=0.04,
+        stability_threshold=0.15,
+        coverage_threshold=0.02,
+        history_length=6,
+        composition_top_k=3,
+        # Provisional Space
+        prov_min_encounters=2,
+        prov_min_stability=0.2,
+        prov_min_diversity=0.05,
+        prov_match_threshold=0.5,
+        prov_max_age=3600,
+        prov_max_idle=600,
+        # Monotonic Detector
+        mono_min_encounters=2,
+        mono_min_stability=0.2,
+        mono_max_variance=0.5,
+        mono_match_threshold=0.2,
+        # Residual Classifier
+        mono_threshold=0.02,
+        noise_threshold=2.0,
+        classifier_window=8,
+    )
+    defaults.update(overrides)
+    return MAIAConfig(**defaults)
 
 
 # ─────────────────────────────────────────────
@@ -52,12 +92,14 @@ class ExperimentMetrics:
         self.library_sizes:       list[int]   = []
         self.residual_norms:      list[float] = []
         self.explained_norms:     list[float] = []
-        self.explanation_ratios:  list[float] = []  # explained / (explained + residual)
-        self.niche_formations:    list[int]   = []  # step at which each Niche formed
+        self.explanation_ratios:  list[float] = []
+        self.niche_formations:    list[int]   = []
         self.active_niche_ids:    list[list]  = []
         self.selection_modes:     list[str]   = []
         self.candidate_flags:     list[bool]  = []
         self.gate_admissions:     list[bool]  = []
+        self.provisional_sizes:   list[int]   = []
+        self.monotonic_sizes:     list[int]   = []
 
     def record(self, step: int, info: dict) -> None:
         self.steps.append(step)
@@ -72,6 +114,8 @@ class ExperimentMetrics:
         self.active_niche_ids.append(info.get("active_niches", []))
         self.selection_modes.append(info.get("selection_mode", "none"))
         self.candidate_flags.append(info.get("candidate_flagged", False))
+        self.provisional_sizes.append(info.get("provisional_size", 0))
+        self.monotonic_sizes.append(info.get("monotonic_size", 0))
 
         admitted = info.get("gate_admitted")
         self.gate_admissions.append(admitted if admitted is not None else False)
@@ -84,11 +128,11 @@ class ExperimentMetrics:
             print(f"[{self.name}] No data recorded.")
             return
 
-        total_steps     = len(self.steps)
-        total_candidates= sum(self.candidate_flags)
-        total_admitted  = len(self.niche_formations)
-        final_library   = self.library_sizes[-1] if self.library_sizes else 0
-        avg_explanation = sum(self.explanation_ratios) / len(self.explanation_ratios)
+        total_steps       = len(self.steps)
+        total_candidates  = sum(self.candidate_flags)
+        total_admitted    = len(self.niche_formations)
+        final_library     = self.library_sizes[-1] if self.library_sizes else 0
+        avg_explanation   = sum(self.explanation_ratios) / len(self.explanation_ratios)
         composition_steps = sum(1 for m in self.selection_modes if m == "composition")
 
         print(f"\n{'─'*50}")
@@ -102,6 +146,12 @@ class ExperimentMetrics:
         print(f"  Avg explanation ratio:  {avg_explanation:.3f}  "
               f"(1.0 = fully explained by existing Niches)")
         print(f"  Composition steps:      {composition_steps}/{total_steps}")
+        if self.provisional_sizes:
+            print(f"  Max provisional size:   {max(self.provisional_sizes)}")
+            print(f"  Final provisional size: {self.provisional_sizes[-1]}")
+        if self.monotonic_sizes:
+            print(f"  Max monotonic size:     {max(self.monotonic_sizes)}")
+            print(f"  Final monotonic size:   {self.monotonic_sizes[-1]}")
 
     def explained_ratio_trend(self, window: int = 10) -> list[float]:
         """Rolling average of explanation ratio — shows learning curve."""
@@ -130,14 +180,7 @@ def experiment_mechanism_discovery(n_neurons: int = 32, n_steps: int = 60) -> Ex
     print("Experiment 1: Mechanism Discovery & Reuse")
     print("="*50)
 
-    config = MAIAConfig(
-        n_neurons=n_neurons,
-        max_niches=16,
-        residual_threshold=0.04,
-        stability_threshold=0.15,
-        coverage_threshold=0.02,
-        history_length=6,
-    )
+    config = base_config(n_neurons)
     maia = MAIA(config)
     metrics = ExperimentMetrics("Mechanism Discovery")
 
@@ -151,9 +194,8 @@ def experiment_mechanism_discovery(n_neurons: int = 32, n_steps: int = 60) -> Ex
                   f"| library: {info['library_size']}  "
                   f"| explanation ratio: {metrics.explanation_ratios[-1]:.3f}")
 
-    # Check: explanation ratio should rise over time (reuse kicking in)
-    early_avg  = sum(metrics.explanation_ratios[:10]) / 10
-    late_avg   = sum(metrics.explanation_ratios[-10:]) / 10
+    early_avg = sum(metrics.explanation_ratios[:10]) / 10
+    late_avg  = sum(metrics.explanation_ratios[-10:]) / 10
     reuse_confirmed = late_avg > early_avg
 
     print(f"\n  Early explanation ratio (steps 1–10):   {early_avg:.3f}")
@@ -180,14 +222,7 @@ def experiment_distinct_niches(n_neurons: int = 32, steps_per_phase: int = 40) -
     print("Experiment 2: Distinct Niches for Distinct Dynamics")
     print("="*50)
 
-    config = MAIAConfig(
-        n_neurons=n_neurons,
-        max_niches=16,
-        residual_threshold=0.04,
-        stability_threshold=0.15,
-        coverage_threshold=0.02,
-        history_length=6,
-    )
+    config = base_config(n_neurons)
     maia = MAIA(config)
     metrics = ExperimentMetrics("Distinct Niches")
 
@@ -195,14 +230,12 @@ def experiment_distinct_niches(n_neurons: int = 32, steps_per_phase: int = 40) -
         ("linear",      steps_per_phase),
         ("oscillatory", steps_per_phase),
         ("jump",        steps_per_phase),
-        ("linear",      steps_per_phase),  # repeat — should reuse, not re-form
+        ("linear",      steps_per_phase),
     ]
 
     global_step = 0
-    niches_at_phase_start = {}
 
     for phase_name, n_steps in phases:
-        niches_at_phase_start[phase_name] = maia.library.m
         phase_formations = 0
         print(f"\n  Phase: {phase_name:12s} | Niches before: {maia.library.m}")
 
@@ -217,7 +250,6 @@ def experiment_distinct_niches(n_neurons: int = 32, steps_per_phase: int = 40) -
         print(f"  Phase: {phase_name:12s} | Niches after:  {maia.library.m} "
               f"(+{phase_formations} formed this phase)")
 
-    # Check: linear reappearance should form 0 new Niches (reuse)
     print(f"\n  Linear dynamic reappearance: "
           f"{'✓ reused existing Niches (0 new formed)' if metrics.niche_formations and metrics.niche_formations[-1] < 3 * steps_per_phase else '→ check reuse behavior'}")
 
@@ -241,19 +273,10 @@ def experiment_composition(n_neurons: int = 32) -> ExperimentMetrics:
     print("Experiment 3: Composition of Existing Niches")
     print("="*50)
 
-    config = MAIAConfig(
-        n_neurons=n_neurons,
-        max_niches=16,
-        residual_threshold=0.04,
-        stability_threshold=0.15,
-        coverage_threshold=0.02,
-        history_length=6,
-        composition_top_k=3,
-    )
+    config = base_config(n_neurons)
     maia = MAIA(config)
     metrics = ExperimentMetrics("Composition")
 
-    # Phase 1: Build library with individual dynamics
     print("\n  Building library (individual dynamics)...")
     for mode in ["linear", "oscillatory", "jump"]:
         for step in range(1, 41):
@@ -263,7 +286,6 @@ def experiment_composition(n_neurons: int = 32) -> ExperimentMetrics:
     library_before_mix = maia.library.m
     print(f"  Library size before mixed phase: {library_before_mix} Niches")
 
-    # Phase 2: Mixed dynamics — should compose, not form new Niches
     print("\n  Mixed dynamics phase (steps 1–60)...")
     new_formations_during_mix = 0
     composition_steps = 0
@@ -299,9 +321,7 @@ def experiment_composition(n_neurons: int = 32) -> ExperimentMetrics:
 def experiment_failure_traceability(n_neurons: int = 32) -> None:
     """
     Present MAIA with contexts it has and hasn't seen.
-    Verify that failure diagnosis correctly identifies:
-      - 'incomplete_mechanism' for truly novel contexts
-      - 'none_detected' for familiar contexts
+    Verify that failure diagnosis correctly identifies failure modes.
 
     Validates: Hypothesis 4 (failure traceability)
     """
@@ -309,11 +329,9 @@ def experiment_failure_traceability(n_neurons: int = 32) -> None:
     print("Experiment 4: Failure Traceability")
     print("="*50)
 
-    config = MAIAConfig(n_neurons=n_neurons, stability_threshold=0.15,
-                        residual_threshold=0.04, coverage_threshold=0.02)
+    config = base_config(n_neurons)
     maia = MAIA(config)
 
-    # Build a small library
     for mode in ["linear", "oscillatory"]:
         for step in range(1, 61):
             state = generate_neuron_state(step, n_neurons, mode=mode)
@@ -350,8 +368,7 @@ def experiment_scaling(n_neurons: int = 32) -> None:
     Run MAIA with different max_niches settings and measure
     how explanation ratio scales with Niche count.
 
-    This directly tests the awareness spectrum claim:
-    more Niches → better explanation → higher awareness.
+    Validates: awareness spectrum hypothesis
     """
     print("\n" + "="*50)
     print("Experiment 5: Awareness Spectrum — Scaling")
@@ -361,14 +378,7 @@ def experiment_scaling(n_neurons: int = 32) -> None:
     results = []
 
     for cap in niche_caps:
-        config = MAIAConfig(
-            n_neurons=n_neurons,
-            max_niches=cap,
-            residual_threshold=0.04,
-            stability_threshold=0.15,
-            coverage_threshold=0.02,
-            history_length=6,
-        )
+        config = base_config(n_neurons, max_niches=cap)
         maia = MAIA(config)
 
         explanation_ratios = []
@@ -387,7 +397,6 @@ def experiment_scaling(n_neurons: int = 32) -> None:
         print(f"  max_niches={cap:3d} | final library={final_niches:2d} | "
               f"avg explanation={avg_ratio:.3f}")
 
-    # Check monotonic trend
     ratios = [r[2] for r in results]
     is_monotonic = all(ratios[i] <= ratios[i+1] for i in range(len(ratios)-1))
     print(f"\n  Awareness spectrum monotonic: {'✓ YES' if is_monotonic else '~ partial'}")
@@ -401,7 +410,7 @@ def experiment_scaling(n_neurons: int = 32) -> None:
 if __name__ == "__main__":
     torch.manual_seed(42)
 
-    N = 32  # neuron count for all experiments
+    N = 32
 
     print("MAIA — Toy Dynamics Experiment Suite")
     print("=" * 50)
@@ -416,6 +425,6 @@ if __name__ == "__main__":
 
     print("\n" + "="*50)
     print("All experiments complete.")
-    print("These results map directly to the 6 research hypotheses")
-    print("in the MAIA formal specification (spec_v3.docx).")
+    print("These results map directly to the 10 research hypotheses")
+    print("in the MAIA formal specification (spec_v5.docx).")
     print("="*50)

@@ -234,7 +234,7 @@ class NicheLibrary(nn.Module):
         structural_scores = (lib_norm * ctx_norm).sum(dim=0)  # (m,)
 
         # Combined score
-        scores = 0.5 * learned_scores + 0.5 * structural_scores
+        scores = 0.1 * learned_scores + 0.9 * structural_scores
         scores = F.softmax(scores, dim=0)
 
         best_idx = scores.argmax().item()
@@ -339,7 +339,7 @@ class NicheLibrary(nn.Module):
         uniform_score = 1.0 / self.m
         match_ratio = best_score / uniform_score
 
-        if match_ratio < 1.2:
+        if match_ratio < 1.1:
             return {
                 "failure": "incomplete_mechanism",
                 "best_score": best_score,

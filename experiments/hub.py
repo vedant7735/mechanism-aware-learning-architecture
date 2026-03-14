@@ -25,7 +25,9 @@ The Hub's primary function is weight modulation:
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from typing import Optional
+
 
 
 class CentralAwarenessHub(nn.Module):
@@ -79,11 +81,21 @@ class CentralAwarenessHub(nn.Module):
     def compute_change_vector(self, current_state: torch.Tensor) -> torch.Tensor:
         """
         Compute per-neuron change from previous state.
+    
+        The raw change is decomposed into:
+        - magnitude: how much changed (scale)
+        - direction: what kind of change (mechanism)
+    
+        We normalize the current and previous states before computing
+        the change so the Hub tracks directional shifts, not scale drift.
+        This makes mechanism detection scale-invariant.
 
         Returns:
-            change_vector: (n,) — how much each neuron changed this step
+            change_vector: (n,) — directional change this step
         """
-        change_vector = current_state - self.prev_state
+        curr_norm = F.normalize(current_state, dim=0)
+        prev_norm = F.normalize(self.prev_state, dim=0)
+        change_vector = curr_norm - prev_norm
         self.prev_state = current_state.detach()
         return change_vector
 
@@ -253,7 +265,6 @@ class CentralAwarenessHub(nn.Module):
             "candidate_niche": candidate,
             "niche_activations": niche_activations,
         }
-
     # ─────────────────────────────────────────────
     # Introspection
     # ─────────────────────────────────────────────

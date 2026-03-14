@@ -1,0 +1,124 @@
+MAIA — Toy Dynamics Experiment Suite
+==================================================
+Neurons: 32
+Running 5 experiments...
+
+
+==================================================
+Experiment 1: Mechanism Discovery & Reuse
+==================================================
+  Step  14: Niche [0] formed  | library: 1  | explanation ratio: 0.124
+
+  Early explanation ratio (steps 1–10):   0.017
+  Late explanation ratio  (steps 51–60):  0.472
+  Reuse confirmed: ✓ YES
+
+──────────────────────────────────────────────────
+Experiment: Mechanism Discovery
+──────────────────────────────────────────────────
+  Steps:                  60
+  Final library size:     1 Niches
+  Niches formed at steps: [14]
+  Candidates flagged:     60
+  Gate admissions:        1
+  Avg explanation ratio:  0.291  (1.0 = fully explained by existing Niches)
+  Composition steps:      0/60
+  Max provisional size:   8
+  Final provisional size: 0
+  Max monotonic size:     12
+  Final monotonic size:   12
+
+==================================================
+Experiment 2: Distinct Niches for Distinct Dynamics
+==================================================
+
+  Phase: linear       | Niches before: 0
+  Phase: linear       | Niches after:  1 (+1 formed this phase)
+
+  Phase: oscillatory  | Niches before: 1
+  Phase: oscillatory  | Niches after:  2 (+1 formed this phase)
+
+  Phase: jump         | Niches before: 2
+  Phase: jump         | Niches after:  2 (+0 formed this phase)
+
+  Phase: linear       | Niches before: 2
+  Phase: linear       | Niches after:  2 (+0 formed this phase)
+
+  Linear dynamic reappearance: ✓ reused existing Niches (0 new formed)
+
+──────────────────────────────────────────────────
+Experiment: Distinct Niches
+──────────────────────────────────────────────────
+  Steps:                  160
+  Final library size:     2 Niches
+  Niches formed at steps: [13, 75]
+  Candidates flagged:     160
+  Gate admissions:        2
+  Avg explanation ratio:  0.429  (1.0 = fully explained by existing Niches)
+  Composition steps:      0/160
+  Max provisional size:   9
+  Final provisional size: 9
+  Max monotonic size:     14
+  Final monotonic size:   14
+
+==================================================
+Experiment 3: Composition of Existing Niches
+==================================================
+
+  Building library (individual dynamics)...
+  Library size before mixed phase: 2 Niches
+
+  Mixed dynamics phase (steps 1–60)...
+  Library size after mixed phase:  5 Niches
+  New Niches formed during mix:    3
+  Composition used:                45/60 steps (75.0%)
+  Composition hypothesis: ✓ confirmed
+
+──────────────────────────────────────────────────
+Experiment: Composition
+──────────────────────────────────────────────────
+  Steps:                  60
+  Final library size:     5 Niches
+  Niches formed at steps: [16, 23, 36]
+  Candidates flagged:     60
+  Gate admissions:        3
+  Avg explanation ratio:  0.505  (1.0 = fully explained by existing Niches)
+  Composition steps:      45/60
+  Max provisional size:   5
+  Final provisional size: 3
+  Max monotonic size:     13
+  Final monotonic size:   13
+
+==================================================
+Experiment 4: Failure Traceability
+==================================================
+
+  Library built: 4 Niches
+
+  ✓ Familiar — linear
+     → none_detected: Mechanism coverage looks adequate for this context.
+  ✓ Familiar — oscillatory
+     → none_detected: Mechanism coverage looks adequate for this context.
+  ✓ Novel — random noise
+     → none_detected: Mechanism coverage looks adequate for this context.
+  ✓ Novel — extreme values
+     → none_detected: Mechanism coverage looks adequate for this context.
+  ✓ Novel — sparse spike
+     → none_detected: Mechanism coverage looks adequate for this context.
+
+==================================================
+Experiment 5: Awareness Spectrum — Scaling
+==================================================
+  max_niches=  2 | final library= 6 | avg explanation=0.217
+  max_niches=  4 | final library= 3 | avg explanation=0.278
+  max_niches=  8 | final library= 5 | avg explanation=0.341
+  max_niches= 16 | final library= 5 | avg explanation=0.368
+
+  Awareness spectrum monotonic: ✓ YES
+  (Higher Niche cap → better average explanation → richer awareness)
+
+==================================================
+All experiments complete.
+These results map directly to the 10 research hypotheses
+in the MAIA formal specification (spec_v5.docx).
+==================================================
