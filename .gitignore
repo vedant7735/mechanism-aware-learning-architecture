@@ -24,3 +24,10 @@ Thumbs.db
 *.log
 *.csv
 results.txt
+
+# Pyright
+pyrightconfig.json
+
+# Pycache anywhere
+core/__pycache__/
+**/__pycache__/
