@@ -1,4 +1,4 @@
-# 🧠 MAIA — Mechanism-Aware Intelligence Architecture
+# MAIA — Mechanism-Aware Intelligence Architecture
 
 ![Status](https://img.shields.io/badge/status-active%20research-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
